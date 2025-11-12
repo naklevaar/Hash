@@ -9,6 +9,13 @@ app = FastAPI()
 # The simple dictionary that just works!
 commitment_storage = {}
 
+@app.get("/")
+def root():
+    return {
+        "message": "Provably fair game API is running!",
+        "endpoints": ["/get_commitment", "/play_game"]
+    }
+
 @app.get("/get_commitment")
 def get_commitment():
     server_seed = os.urandom(32).hex()
