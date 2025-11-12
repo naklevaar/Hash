@@ -3,67 +3,48 @@ import os
 import hmac
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
-from upstash_redis import Redis  # Import the Upstash library
-
-# This line automatically finds the 'UPSTASH_REDIS_...' keys
-# that Vercel added for you.
-redis = Redis.from_env()
 
 app = FastAPI()
 
-# --- Endpoint 1: GET a New Commitment ---
+# The simple dictionary that just works!
+commitment_storage = {}
 
 @app.get("/get_commitment")
-async def get_commitment():
-    """
-    Generates a new server_seed and commitment_hash.
-    Stores the seed in Upstash Redis and returns the hash.
-    """
+def get_commitment():
     server_seed = os.urandom(32).hex()
     commitment_hash = hashlib.sha256(server_seed.encode('utf-8')).hexdigest()
     
-    # 'await redis.setex(...)' stores the key in your new database
-    # for 1 hour (3600 seconds).
-    await redis.setex(commitment_hash, 3600, server_seed)
+    # Store it in the simple dictionary
+    commitment_storage[commitment_hash] = server_seed
     
     return {"commitment_hash": commitment_hash}
-
-# --- Endpoint 2: Play the Game ---
 
 class PlayRequest(BaseModel):
     commitment_hash: str
     client_seed: str
 
 @app.post("/play_game")
-async def play_game(request: PlayRequest):
-    """
-    Takes a commitment_hash and client_seed, finds the matching
-    server_seed in Upstash Redis, calculates the roll, and returns proof.
-    """
+def play_game(request: PlayRequest):
     client_seed = request.client_seed
     commitment_hash = request.commitment_hash
     
-    # 'await redis.getdel(...)' finds the key, gets the value,
-    # and deletes it all in one step.
-    server_seed_bytes = await redis.getdel(commitment_hash)
+    # Get it from the dictionary
+    server_seed = commitment_storage.pop(commitment_hash, None)
     
-    if server_seed_bytes is None:
+    if server_seed is None:
         raise HTTPException(status_code=404, detail="Commitment hash not found or already used.")
-    
-    # Data from this library comes back as 'bytes', so we .decode() it
-    server_seed = server_seed_bytes.decode('utf-8')
 
-    # 4. Same game logic as before
+    # --- Same game logic ---
     combined_hash_object = hmac.new(
         server_seed.encode('utf-8'),
         client_seed.encode('utf-8'),
         hashlib.sha256
     )
     combined_hash = combined_hash_object.hexdigest()
-
     hash_substring = combined_hash[:5]
     hash_as_int = int(hash_substring, 16)
     roll_result = (hash_as_int % 10001) % 100
+    # --- End of game logic ---
 
     return {
         "roll_result": roll_result,
