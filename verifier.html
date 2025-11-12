@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Provably Fair Verifier</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+    <style>
+        body { font-family: sans-serif; padding: 20px; }
+        input { width: 400px; margin-bottom: 10px; }
+        #result { margin-top: 20px; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <h2>Provably Fair Verifier</h2>
+    <p>
+        Paste the results from the API to verify the roll.
+    </p>
+
+    <label for="server_seed">Server Seed:</label><br>
+    <input type="text" id="server_seed"><br>
+
+    <label for="client_seed">Client Seed:</label><br>
+    <input type="text" id="client_seed"><br>
+
+    <button onclick="verify()">Verify Roll</button>
+
+    <div id="result"></div>
+
+    <script>
+        function verify() {
+            // 1. Get the inputs from the text boxes
+            var server_seed = document.getElementById("server_seed").value;
+            var client_seed = document.getElementById("client_seed").value;
+
+            // 2. Perform the *exact same* HMAC-SHA256 calculation
+            //    (In CryptoJS, the order is Message, then Key)
+            var combined_hash = CryptoJS.HmacSHA256(client_seed, server_seed);
+
+            // 3. Convert the hash object to a string
+            var combined_hash_string = combined_hash.toString(CryptoJS.enc.Hex);
+
+            // 4. Perform the *exact same* roll calculation
+            var hash_substring = combined_hash_string.substring(0, 5);
+            var hash_as_int = parseInt(hash_substring, 16);
+            var roll_result = (hash_as_int % 10001) % 100;
+
+            // 5. Display the result on the page
+            var result_div = document.getElementById("result");
+            result_div.innerHTML = "Calculated Roll Result: " + roll_result;
+        }
+    </script>
+</body>
+</html>

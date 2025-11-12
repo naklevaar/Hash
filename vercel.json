@@ -1,0 +1,14 @@
+{
+  "builds": [
+    {
+      "src": "phase2_api.py",
+      "use": "@vercel/python"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "phase2_api.py"
+    }
+  ]
+}
